@@ -6,7 +6,15 @@
     var items = [];
 
     function getApiClient() {
-        return (window.parent && window.parent.ApiClient) ? window.parent.ApiClient : window.ApiClient;
+        return (window.parent && window.parent.ApiClient) ? window.parent.ApiClient : (window.ApiClient || null);
+    }
+
+    function showError(message) {
+        var el = document.getElementById("wl-error");
+        if (el) {
+            el.textContent = message;
+            el.hidden = false;
+        }
     }
 
     function authHeaders() {
@@ -19,11 +27,26 @@
     }
 
     function fetchItems() {
+        if (!getApiClient()) {
+            showError("Could not find the Jellyfin session (ApiClient). Open this page from within Jellyfin, not directly in a new browser with no session.");
+            return Promise.resolve([]);
+        }
         if (!authHeaders()["X-Emby-Token"]) {
+            showError("You don't appear to be signed in to Jellyfin in this browser.");
             return Promise.resolve([]);
         }
         return fetch(apiBase + "/items", { headers: authHeaders() })
-            .then(function (res) { return res.ok ? res.json() : []; });
+            .then(function (res) {
+                if (!res.ok) {
+                    showError("Failed to load Watch Later items (HTTP " + res.status + ").");
+                    return [];
+                }
+                return res.json();
+            })
+            .catch(function (err) {
+                showError("Failed to load Watch Later items: " + err);
+                return [];
+            });
     }
 
     function checkAvailability(item) {
