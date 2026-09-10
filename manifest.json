@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.0.17.0",
+        "changelog": "Automated build",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/Orvlyn/DinkFlix-Bookmark/releases/download/1.0.17.0/DinkFlixWatchLater_1.0.17.0.zip",
+        "checksum": "f8c4aa7486ee995efaac5a4967f8d56f",
+        "timestamp": "2026-09-10T15:33:14Z"
+      },
+      {
         "version": "1.0.16.0",
         "changelog": "Automated build",
         "targetAbi": "12.0.0.0",
