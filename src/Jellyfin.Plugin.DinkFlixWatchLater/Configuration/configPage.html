@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+    <title>DinkFlix Watch Later</title>
+</head>
+<body>
+    <div id="DinkFlixWatchLaterConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="DinkFlixWatchLaterConfigForm">
+                    <div class="verticalSection">
+                        <h2>DinkFlix Watch Later</h2>
+                        <p>Connect to your Seerr (Jellyseerr/Overseerr) instance so Watch Later can pull metadata and submit requests.</p>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="SeerrUrl">Seerr URL</label>
+                        <input id="SeerrUrl" name="SeerrUrl" type="text" is="emby-input" placeholder="http://192.168.1.10:5055" />
+                        <div class="fieldDescription">Base URL of your Seerr instance, no trailing slash.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="SeerrApiKey">Seerr API Key</label>
+                        <input id="SeerrApiKey" name="SeerrApiKey" type="password" is="emby-input" />
+                        <div class="fieldDescription">Found in Seerr under Settings &rarr; General &rarr; API Key.</div>
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                    <div class="verticalSection">
+                        <h3>Open Watch Later</h3>
+                        <p>
+                            <a is="emby-linkbutton" class="raised button-alt block" href="/DinkFlixWatchLater/web/page" target="_blank">
+                                Open the Watch Later page
+                            </a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = "6f2c9e2a-2d0a-4a7c-9c9d-8b1f6a9d1234";
+
+            document.querySelector("#DinkFlixWatchLaterConfigPage")
+                .addEventListener("pageshow", function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        // tolerate either PascalCase or camelCase serialization depending on server version
+                        document.querySelector("#SeerrUrl").value = config.SeerrUrl || config.seerrUrl || "";
+                        document.querySelector("#SeerrApiKey").value = config.SeerrApiKey || config.seerrApiKey || "";
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+            document.querySelector("#DinkFlixWatchLaterConfigForm")
+                .addEventListener("submit", function (e) {
+                    e.preventDefault();
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        var url = document.querySelector("#SeerrUrl").value;
+                        var apiKey = document.querySelector("#SeerrApiKey").value;
+                        // set both casings so it round-trips regardless of the server's JSON convention
+                        config.SeerrUrl = url;
+                        config.seerrUrl = url;
+                        config.SeerrApiKey = apiKey;
+                        config.seerrApiKey = apiKey;
+                        ApiClient.updatePluginConfiguration(pluginId, config).then(function () {
+                            Dashboard.processPluginConfigurationUpdateResult();
+                        });
+                    });
+                    return false;
+                });
+        })();
+    </script>
+</body>
+</html>
