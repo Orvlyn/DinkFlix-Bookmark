@@ -43,29 +43,40 @@ jobs:
             --title "${{ steps.version.outputs.version }}" \
             --notes "Automated build from commit ${{ github.sha }}"
 
-      - name: Update plugin manifest
+      - name: Update manifest and push
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           VERSION="${{ steps.version.outputs.version }}"
           ZIP_NAME="DinkFlixWatchLater_${VERSION}.zip"
           CHECKSUM=$(md5sum "$ZIP_NAME" | cut -d ' ' -f1)
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${ZIP_NAME}"
 
-          jq --arg version "$VERSION" \
-             --arg changelog "Automated build" \
-             --arg targetAbi "12.0.0.0" \
-             --arg sourceUrl "$SOURCE_URL" \
-             --arg checksum "$CHECKSUM" \
-             --arg timestamp "$TIMESTAMP" \
-             '(.[0].versions) |= ([{version:$version, changelog:$changelog, targetAbi:$targetAbi, sourceUrl:$sourceUrl, checksum:$checksum, timestamp:$timestamp}] + .)' \
-             manifest.json > manifest.tmp.json
-          mv manifest.tmp.json manifest.json
+          # retries on top of the latest remote manifest.json each time, to survive a concurrent push landing in between
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
 
-      # [skip ci] stops this commit from re-triggering the workflow (would otherwise loop forever)
-      - name: Commit updated manifest
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add manifest.json
-          git commit -m "Update plugin manifest for ${{ steps.version.outputs.version }} [skip ci]" || echo "No changes to commit"
-          git push
+            jq --arg version "$VERSION" \
+               --arg changelog "Automated build" \
+               --arg targetAbi "12.0.0.0" \
+               --arg sourceUrl "$SOURCE_URL" \
+               --arg checksum "$CHECKSUM" \
+               --arg timestamp "$TIMESTAMP" \
+               '(.[0].versions) |= ([{version:$version, changelog:$changelog, targetAbi:$targetAbi, sourceUrl:$sourceUrl, checksum:$checksum, timestamp:$timestamp}] + .)' \
+               manifest.json > manifest.tmp.json
+            mv manifest.tmp.json manifest.json
+
+            git add manifest.json
+            git commit -m "Update plugin manifest for ${VERSION} [skip ci]" || { echo "No changes to commit"; break; }
+
+            if git push origin HEAD:main; then
+              echo "Push succeeded"
+              break
+            fi
+
+            echo "Push rejected on attempt $attempt, retrying..."
+            sleep 3
+          done
