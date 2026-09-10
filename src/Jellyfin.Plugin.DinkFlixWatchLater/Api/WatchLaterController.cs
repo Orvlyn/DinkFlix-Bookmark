@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.DinkFlixWatchLater.Api.Dto;
 using Jellyfin.Plugin.DinkFlixWatchLater.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using Jellyfin.Data.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

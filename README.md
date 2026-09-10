@@ -59,42 +59,44 @@ src/Jellyfin.Plugin.DinkFlixWatchLater/
     Web/watchlater.html|.css|.js             the Watch Later page itself (DinkFlix-styled)
 ```
 
-## Getting a working plugin — no coding or install required on your end
+## Getting a working plugin — no coding required on your end
 
 You do **not** need to install .NET, run any commands, or know how to code.
-GitHub will compile the plugin for you for free every time you upload changes.
+GitHub builds the plugin for you, creates a release, and Jellyfin installs it
+straight from your repo like any other plugin catalog entry.
 
-1. **Create a GitHub repository** (e.g. `DinkFlix-WatchLater`) — on
-   github.com, click **New repository**, make it Public, don't add a README
-   (you already have one).
-2. **Upload the files** — open the repo page, click **Add file → Upload
-   files**, then drag the entire contents of `F:\Jellyfin\DinkFlix Bookmark`
-   into the browser window (keep the folder structure: `.github`, `src`,
-   `README.md`, etc. all at the top level of the repo). Click **Commit
-   changes**.
-3. **Wait for the build** — click the **Actions** tab at the top of your repo.
-   You'll see a run called "Build Plugin" start automatically (takes a couple
-   of minutes). A green check mark means it succeeded.
-   - If it fails (red ✗), click into the run and open the "Build" step to see
-     the error — that means something in the C# needs a small fix; paste the
-     error back to me and I'll fix it.
-4. **Download the result** — once it's green, open that run, scroll to the
-   **Artifacts** section at the bottom, and download **DinkFlixWatchLater**.
-   It's a zip containing a `DinkFlixWatchLater` folder with the plugin `.dll`
-   inside.
-5. **Install it on your Jellyfin server** — unzip it, then copy the
-   `DinkFlixWatchLater` folder into your Jellyfin server's `plugins` folder
-   (e.g. `%ProgramData%\Jellyfin\Server\plugins\` on Windows, or
-   `/var/lib/jellyfin/plugins/` on Linux/Docker). Restart Jellyfin.
-6. It'll now show up under **Dashboard → Plugins → My Plugins** as "DinkFlix
-   Watch Later" — click it to enter your Seerr URL and API key.
+1. **Create a GitHub repository** (e.g. `DinkFlix-WatchLater`) — Public, don't
+   add a README (you already have one).
+2. **Upload the files** — **Add file → Upload files**, drag in everything from
+   `F:\Jellyfin\DinkFlix Bookmark` (keep the folder structure — `.github`,
+   `src`, `README.md`, `manifest.json` etc. all at the top level). Commit.
+   - If `.github/workflows/build.yml` doesn't end up in the repo (browsers
+     sometimes drop dot-folders on drag/drop), create it manually: **Add file
+     → Create new file**, type `.github/workflows/build.yml` as the filename,
+     and paste in the contents of that file from your local copy.
+3. **Wait for the build** — click the **Actions** tab, watch the "Build and
+   Publish Plugin" run go green (a couple of minutes). It automatically:
+   - builds the plugin
+   - creates a GitHub **Release** with the compiled zip attached
+   - updates `manifest.json` in the repo with that release's download link
+     and checksum
+   - If it goes red instead, open the run, open the failing step, and paste
+     the error back to me.
+4. **Add the repository in Jellyfin** — Dashboard → Plugins → **Repositories**
+   → **Add Repository**:
+   - Name: `DinkFlix`
+   - URL:
+     ```
+     https://raw.githubusercontent.com/<your-username>/<your-repo-name>/main/manifest.json
+     ```
+5. Go to the **Catalog** tab — "DinkFlix Watch Later" should show up. Click it,
+   **Install**, then restart Jellyfin when prompted.
+6. **Dashboard → Plugins → My Plugins → DinkFlix Watch Later** → enter your
+   Seerr URL and API key.
 
-That's the entire process — everything after step 2 is you clicking buttons
-on github.com and copying one folder. You only need to repeat steps 3-5 when
-you want to update the plugin later.
-
-> Re-run steps 3-5 any time you (or I) push new changes to the repo — every
-> push to `main` rebuilds it automatically.
+Every time you push new changes to `main`, the workflow builds a new version
+and updates the manifest automatically — Jellyfin will just show an update
+available for the plugin, same as any other.
 
 ## Setup after installing
 

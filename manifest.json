@@ -1,0 +1,11 @@
+[
+    {
+        "guid": "6f2c9e2a-2d0a-4a7c-9c9d-8b1f6a9d1234",
+        "name": "DinkFlix Watch Later",
+        "description": "Save titles from Seerr as a wishlist without requesting them. Play if you already have it, request if you don't.",
+        "overview": "A Seerr-connected watch-later wishlist for Jellyfin.",
+        "owner": "Orvlyn",
+        "category": "General",
+        "versions": []
+    }
+]
