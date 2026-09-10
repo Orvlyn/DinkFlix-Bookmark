@@ -53,7 +53,7 @@ jobs:
 
           jq --arg version "$VERSION" \
              --arg changelog "Automated build" \
-             --arg targetAbi "10.9.0.0" \
+             --arg targetAbi "12.0.0.0" \
              --arg sourceUrl "$SOURCE_URL" \
              --arg checksum "$CHECKSUM" \
              --arg timestamp "$TIMESTAMP" \
