@@ -1,11 +1,20 @@
 [
-    {
-        "guid": "6f2c9e2a-2d0a-4a7c-9c9d-8b1f6a9d1234",
-        "name": "DinkFlix Watch Later",
-        "description": "Save titles from Seerr as a wishlist without requesting them. Play if you already have it, request if you don't.",
-        "overview": "A Seerr-connected watch-later wishlist for Jellyfin.",
-        "owner": "Orvlyn",
-        "category": "General",
-        "versions": []
-    }
+  {
+    "guid": "6f2c9e2a-2d0a-4a7c-9c9d-8b1f6a9d1234",
+    "name": "DinkFlix Watch Later",
+    "description": "Save titles from Seerr as a wishlist without requesting them. Play if you already have it, request if you don't.",
+    "overview": "A Seerr-connected watch-later wishlist for Jellyfin.",
+    "owner": "Orvlyn",
+    "category": "General",
+    "versions": [
+      {
+        "version": "1.0.4.0",
+        "changelog": "Automated build",
+        "targetAbi": "10.9.0.0",
+        "sourceUrl": "https://github.com/Orvlyn/DinkFlix-Bookmark/releases/download/1.0.4.0/DinkFlixWatchLater_1.0.4.0.zip",
+        "checksum": "9ed3bc522ebd091bf88650d9b95f2201",
+        "timestamp": "2026-09-10T14:36:45Z"
+      }
+    ]
+  }
 ]
