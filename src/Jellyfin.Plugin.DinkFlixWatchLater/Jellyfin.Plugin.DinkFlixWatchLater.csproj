@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Jellyfin.Plugin.DinkFlixWatchLater</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.DinkFlixWatchLater</RootNamespace>
+    <Version>1.0.0.0</Version>
+    <!-- match these to your target Jellyfin server release -->
+    <NoWarn>CA1848;CA2007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.9.11" />
+    <PackageReference Include="Jellyfin.Model" Version="10.9.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Configuration\configPage.html" />
+    <EmbeddedResource Include="Web\watchlater.html" />
+    <EmbeddedResource Include="Web\watchlater.css" />
+    <EmbeddedResource Include="Web\watchlater.js" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+namespace Jellyfin.Plugin.DinkFlixWatchLater.Api.Dto
+{
+    public class AddItemRequest
+    {
+        public string UserId { get; set; } = string.Empty;
+
+        public int TmdbId { get; set; }
+
+        /// <summary>"movie" or "tv".</summary>
+        public string MediaType { get; set; } = "movie";
+    }
+}

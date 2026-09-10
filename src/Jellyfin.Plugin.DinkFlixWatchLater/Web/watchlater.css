@@ -1,0 +1,137 @@
+/* Standalone stylesheet mirroring the DinkFlix theme's cyan-on-obsidian palette. */
+:root {
+    --wlBg: #050810;
+    --wlAccent: #00ffc6;
+    --wlAccentDim: #00c99e;
+    --wlCard: #0c1220;
+    --wlBorder: hsl(180, 25%, 24%);
+    --wlText: rgb(224, 245, 241);
+    --wlDimText: rgb(140, 168, 163);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--wlBg);
+    color: var(--wlText);
+    font-family: "Inter", system-ui, sans-serif;
+}
+
+.wl-page {
+    max-width: 90em;
+    margin: 0 auto;
+    padding: 3em 3.3%;
+}
+
+.wl-title {
+    font-size: 2.5em;
+    font-weight: 600;
+    margin-bottom: 0.75em;
+}
+
+.wl-tabs {
+    display: flex;
+    gap: 0.75em;
+    margin-bottom: 2em;
+}
+
+.wl-tab {
+    background: var(--wlCard);
+    color: var(--wlText);
+    border: 0.06em solid var(--wlBorder);
+    border-radius: 2em;
+    padding: 0.6em 1.4em;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.wl-tab.active,
+.wl-tab:hover {
+    background: var(--wlAccent);
+    color: #001410;
+}
+
+.wl-empty {
+    color: var(--wlDimText);
+}
+
+.wl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
+    gap: 1.5em;
+}
+
+.wl-card {
+    background: var(--wlCard);
+    border: 0.06em solid var(--wlBorder);
+    border-radius: 1em;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.wl-poster {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    background: #111;
+}
+
+.wl-card-body {
+    padding: 0.75em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+}
+
+.wl-card-title {
+    font-size: 0.95em;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.wl-card-added {
+    font-size: 0.75em;
+    color: var(--wlDimText);
+}
+
+.wl-card-actions {
+    display: flex;
+    gap: 0.5em;
+    margin-top: auto;
+}
+
+.wl-btn {
+    flex: 1;
+    border: none;
+    border-radius: 0.5em;
+    padding: 0.5em;
+    font-size: 0.8em;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.wl-btn-play {
+    background: var(--wlAccent);
+    color: #001410;
+}
+
+.wl-btn-request {
+    background: var(--wlAccentDim);
+    color: #001410;
+}
+
+.wl-btn-remove {
+    background: transparent;
+    border: 0.06em solid var(--wlBorder);
+    color: var(--wlText);
+}
+
+.wl-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
