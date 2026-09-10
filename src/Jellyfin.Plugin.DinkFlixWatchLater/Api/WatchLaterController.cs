@@ -6,7 +6,7 @@ using Jellyfin.Plugin.DinkFlixWatchLater.Api.Dto;
 using Jellyfin.Plugin.DinkFlixWatchLater.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.Entities;
+using Jellyfin.Data.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
