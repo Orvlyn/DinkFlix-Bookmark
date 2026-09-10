@@ -1,9 +1,13 @@
-name: Build Plugin
+name: Build and Publish Plugin
 
 on:
   push:
     branches: [main]
   workflow_dispatch: {}
+
+# needed so the workflow can create a release and commit the updated manifest.json
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -15,17 +19,53 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      # bumps every run so Jellyfin always sees a newer version available
+      - name: Determine version
+        id: version
+        run: echo "version=1.0.${{ github.run_number }}.0" >> "$GITHUB_OUTPUT"
+
       - name: Build
         run: dotnet build src/Jellyfin.Plugin.DinkFlixWatchLater/Jellyfin.Plugin.DinkFlixWatchLater.csproj -c Release -o publish
 
+      # zip contents sit at the zip root - Jellyfin creates its own plugin folder on install
       - name: Package
         run: |
-          mkdir -p package/DinkFlixWatchLater
-          cp publish/Jellyfin.Plugin.DinkFlixWatchLater.dll package/DinkFlixWatchLater/
-          cd package && zip -r ../DinkFlixWatchLater.zip DinkFlixWatchLater
+          mkdir -p package
+          cp publish/Jellyfin.Plugin.DinkFlixWatchLater.dll package/
+          cd package && zip -r "../DinkFlixWatchLater_${{ steps.version.outputs.version }}.zip" .
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: DinkFlixWatchLater
-          path: DinkFlixWatchLater.zip
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            "DinkFlixWatchLater_${{ steps.version.outputs.version }}.zip" \
+            --title "${{ steps.version.outputs.version }}" \
+            --notes "Automated build from commit ${{ github.sha }}"
+
+      - name: Update plugin manifest
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIP_NAME="DinkFlixWatchLater_${VERSION}.zip"
+          CHECKSUM=$(md5sum "$ZIP_NAME" | cut -d ' ' -f1)
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${ZIP_NAME}"
+
+          jq --arg version "$VERSION" \
+             --arg changelog "Automated build" \
+             --arg targetAbi "10.9.0.0" \
+             --arg sourceUrl "$SOURCE_URL" \
+             --arg checksum "$CHECKSUM" \
+             --arg timestamp "$TIMESTAMP" \
+             '(.[0].versions) |= ([{version:$version, changelog:$changelog, targetAbi:$targetAbi, sourceUrl:$sourceUrl, checksum:$checksum, timestamp:$timestamp}] + .)' \
+             manifest.json > manifest.tmp.json
+          mv manifest.tmp.json manifest.json
+
+      # [skip ci] stops this commit from re-triggering the workflow (would otherwise loop forever)
+      - name: Commit updated manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Update plugin manifest for ${{ steps.version.outputs.version }} [skip ci]" || echo "No changes to commit"
+          git push
