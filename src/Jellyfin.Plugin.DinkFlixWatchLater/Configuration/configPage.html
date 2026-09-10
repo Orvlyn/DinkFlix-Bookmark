@@ -27,6 +27,8 @@
                             <span>Save</span>
                         </button>
                     </div>
+                    <!-- visible status/error output so problems show up without opening devtools -->
+                    <p id="wl-config-status" style="font-weight:600;"></p>
                     <div class="verticalSection">
                         <h3>Open Watch Later</h3>
                         <p>
@@ -34,6 +36,7 @@
                                 Open the Watch Later page
                             </a>
                         </p>
+                        <p>Or go directly to: <code>http://&lt;your-server&gt;:8096/DinkFlixWatchLater/web/page</code></p>
                     </div>
                 </form>
             </div>
@@ -44,33 +47,65 @@
         (function () {
             var pluginId = "6f2c9e2a-2d0a-4a7c-9c9d-8b1f6a9d1234";
 
-            document.querySelector("#DinkFlixWatchLaterConfigPage")
-                .addEventListener("pageshow", function () {
-                    Dashboard.showLoadingMsg();
-                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-                        // tolerate either PascalCase or camelCase serialization depending on server version
-                        document.querySelector("#SeerrUrl").value = config.SeerrUrl || config.seerrUrl || "";
-                        document.querySelector("#SeerrApiKey").value = config.SeerrApiKey || config.seerrApiKey || "";
-                        Dashboard.hideLoadingMsg();
-                    });
+            function setStatus(message, isError) {
+                var el = document.getElementById("wl-config-status");
+                if (!el) {
+                    return;
+                }
+                el.textContent = message;
+                el.style.color = isError ? "#ff6b6b" : "#00ffc6";
+            }
+
+            function loadConfig() {
+                if (typeof ApiClient === "undefined") {
+                    setStatus("ApiClient is not available on this page - cannot load settings.", true);
+                    return;
+                }
+
+                setStatus("Loading...");
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    // tolerate either PascalCase or camelCase serialization depending on server version
+                    document.querySelector("#SeerrUrl").value = config.SeerrUrl || config.seerrUrl || "";
+                    document.querySelector("#SeerrApiKey").value = config.SeerrApiKey || config.seerrApiKey || "";
+                    setStatus("");
+                }).catch(function (err) {
+                    setStatus("Failed to load settings: " + (err && err.message ? err.message : err), true);
                 });
+            }
+
+            var pageEl = document.querySelector("#DinkFlixWatchLaterConfigPage");
+            if (pageEl) {
+                pageEl.addEventListener("pageshow", loadConfig);
+            }
+            // also load immediately in case this page's lifecycle doesn't fire "pageshow"
+            loadConfig();
 
             document.querySelector("#DinkFlixWatchLaterConfigForm")
                 .addEventListener("submit", function (e) {
                     e.preventDefault();
-                    Dashboard.showLoadingMsg();
+
+                    if (typeof ApiClient === "undefined") {
+                        setStatus("ApiClient is not available on this page - cannot save settings.", true);
+                        return false;
+                    }
+
+                    setStatus("Saving...");
+                    var url = document.querySelector("#SeerrUrl").value;
+                    var apiKey = document.querySelector("#SeerrApiKey").value;
+
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-                        var url = document.querySelector("#SeerrUrl").value;
-                        var apiKey = document.querySelector("#SeerrApiKey").value;
                         // set both casings so it round-trips regardless of the server's JSON convention
                         config.SeerrUrl = url;
                         config.seerrUrl = url;
                         config.SeerrApiKey = apiKey;
                         config.seerrApiKey = apiKey;
-                        ApiClient.updatePluginConfiguration(pluginId, config).then(function () {
-                            Dashboard.processPluginConfigurationUpdateResult();
-                        });
+                        return ApiClient.updatePluginConfiguration(pluginId, config);
+                    }).then(function () {
+                        setStatus("Saved.");
+                    }).catch(function (err) {
+                        setStatus("Save failed: " + (err && err.message ? err.message : err), true);
                     });
+
                     return false;
                 });
         })();
