@@ -1,0 +1,122 @@
+name: Build and Publish Plugin
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dinkflix-watchlater-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="1.1.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build src/Jellyfin.Plugin.DinkFlixWatchLater/Jellyfin.Plugin.DinkFlixWatchLater.csproj \
+            --configuration Release \
+            --output publish
+          test -f publish/Jellyfin.Plugin.DinkFlixWatchLater.dll
+
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIP_NAME="DinkFlixWatchLater_${VERSION}.zip"
+          rm -rf package
+          mkdir package
+          cp publish/Jellyfin.Plugin.DinkFlixWatchLater.dll package/
+          (cd package && zip -q -r "../${ZIP_NAME}" .)
+          test -s "${ZIP_NAME}"
+          echo "zip=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIP_NAME="${{ steps.package.outputs.zip }}"
+          unzip -t "${ZIP_NAME}"
+          unzip -l "${ZIP_NAME}" | grep -F "Jellyfin.Plugin.DinkFlixWatchLater.dll"
+          echo "Package verified: ${ZIP_NAME}"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIP_NAME="${{ steps.package.outputs.zip }}"
+          gh release create "${VERSION}" "${ZIP_NAME}" \
+            --title "DinkFlix Watch Later ${VERSION}" \
+            --notes "Automated DinkFlix Watch Later build for commit ${{ github.sha }}." \
+            --latest
+
+      - name: Update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIP_NAME="${{ steps.package.outputs.zip }}"
+          CHECKSUM="$(md5sum "${ZIP_NAME}" | cut -d ' ' -f1)"
+          TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${ZIP_NAME}"
+
+          jq --arg version "$VERSION" \
+             --arg sourceUrl "$SOURCE_URL" \
+             --arg checksum "$CHECKSUM" \
+             --arg timestamp "$TIMESTAMP" \
+             '.[0].versions |= ([{version:$version,changelog:"DinkFlix Watch Later update",targetAbi:"12.0.0.0",sourceUrl:$sourceUrl,checksum:$checksum,timestamp:$timestamp}] + .)' \
+             manifest.json > manifest.tmp.json
+          mv manifest.tmp.json manifest.json
+
+      - name: Commit manifest safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Update plugin manifest for ${{ steps.version.outputs.version }} [skip ci]"
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "Manifest pushed successfully."
+              exit 0
+            fi
+
+            echo "Push attempt ${attempt} lost a race with another main-branch update. Rebasing and retrying."
+            git fetch origin main
+            git rebase origin/main
+          done
+
+          echo "Unable to publish the manifest after 5 attempts."
+          exit 1
