@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>DinkFlix Watch Later</title>
+    <style>
+        :root { --df-accent:#00ffc6; --df-bg:#0b0f15; --df-panel:#111821; --df-border:rgba(255,255,255,.09); --df-muted:#98a2b3; }
+        .dfwl { max-width: 980px; }
+        .dfwl-hero { padding: 28px; margin-bottom: 22px; border:1px solid var(--df-border); background:linear-gradient(135deg,rgba(0,255,198,.08),rgba(255,255,255,.025)); border-radius:14px; }
+        .dfwl-kicker { margin:0 0 6px; color:var(--df-accent); font-size:.78rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+        .dfwl-hero h2 { margin:.1rem 0 .5rem; font-size:1.8rem; }
+        .dfwl-hero p { margin:0; color:var(--df-muted); max-width:720px; line-height:1.6; }
+        .dfwl-panel { padding:24px; border:1px solid var(--df-border); background:var(--df-panel); border-radius:14px; }
+        .dfwl-panel h3 { margin-top:0; }
+        .dfwl-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+        .dfwl-status { min-height:1.4em; margin-top:14px; font-weight:600; }
+        .dfwl-status.ok { color:var(--df-accent); }
+        .dfwl-status.err { color:#ff7777; white-space:pre-wrap; }
+        .dfwl-note { color:var(--df-muted); line-height:1.55; }
+        .dfwl-code { font-family:monospace; }
+    </style>
+</head>
+<body>
+<div id="DinkFlixWatchLaterConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button">
+    <div data-role="content">
+        <div class="content-primary dfwl">
+            <div class="dfwl-hero">
+                <p class="dfwl-kicker">DinkFlix · Jellyfin</p>
+                <h2>Watch Later</h2>
+                <p>Save movies and TV shows without requesting them. Seerr handles discovery, metadata and requests while DinkFlix keeps a separate personal list for each Jellyfin user.</p>
+            </div>
+
+            <form id="DinkFlixWatchLaterConfigForm" class="dfwl-panel">
+                <h3>Seerr connection</h3>
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="SeerrUrl">Seerr URL</label>
+                    <input id="SeerrUrl" name="SeerrUrl" type="url" is="emby-input" autocomplete="url" placeholder="http://192.168.1.10:5055">
+                    <div class="fieldDescription">Enter the base address only. A trailing slash is removed automatically.</div>
+                </div>
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="SeerrApiKey">Seerr API key</label>
+                    <input id="SeerrApiKey" name="SeerrApiKey" type="password" is="emby-input" autocomplete="off">
+                    <div class="fieldDescription">Seerr → Settings → General → API Key. This key is stored in Jellyfin's plugin configuration and is never sent to the browser page.</div>
+                </div>
+                <div class="dfwl-actions">
+                    <button is="emby-button" type="submit" class="raised button-submit"><span>Save settings</span></button>
+                    <button is="emby-button" type="button" id="DinkFlixTestButton" class="raised button-alt"><span>Test connection</span></button>
+                </div>
+                <div id="DinkFlixStatus" class="dfwl-status" aria-live="polite"></div>
+            </form>
+
+            <div class="dfwl-panel" style="margin-top:18px">
+                <h3>Open Watch Later</h3>
+                <p class="dfwl-note">The Watch Later page uses the signed-in Jellyfin Web session, so saved titles remain private to the current Jellyfin user.</p>
+                <a is="emby-linkbutton" class="raised button-alt" href="/DinkFlixWatchLater/web/page"><span>Open Watch Later</span></a>
+                <p class="fieldDescription dfwl-code">/DinkFlixWatchLater/web/page</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var DinkFlixWatchLaterConfig = {
+            pluginUniqueId: '6f2c9e2a-2d0a-4a7c-9c9d-8b1f6a9d1234'
+        };
+
+        (function () {
+            var page = document.querySelector('#DinkFlixWatchLaterConfigPage');
+            var form = document.querySelector('#DinkFlixWatchLaterConfigForm');
+            var urlInput = document.querySelector('#SeerrUrl');
+            var keyInput = document.querySelector('#SeerrApiKey');
+            var status = document.querySelector('#DinkFlixStatus');
+            var testButton = document.querySelector('#DinkFlixTestButton');
+
+            function setStatus(message, type) {
+                status.textContent = message || '';
+                status.className = 'dfwl-status ' + (type || '');
+            }
+
+            function cleanUrl(value) {
+                return (value || '').trim().replace(/\/+$/, '');
+            }
+
+            page.addEventListener('pageshow', function () {
+                Dashboard.showLoadingMsg();
+                setStatus('');
+                ApiClient.getPluginConfiguration(DinkFlixWatchLaterConfig.pluginUniqueId).then(function (config) {
+                    urlInput.value = config.SeerrUrl || '';
+                    keyInput.value = config.SeerrApiKey || '';
+                }).catch(function (error) {
+                    setStatus('Could not load the saved configuration: ' + (error && error.message ? error.message : error), 'err');
+                }).finally(function () {
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                Dashboard.showLoadingMsg();
+                setStatus('Saving settings...');
+
+                ApiClient.getPluginConfiguration(DinkFlixWatchLaterConfig.pluginUniqueId).then(function (config) {
+                    config.SeerrUrl = cleanUrl(urlInput.value);
+                    config.SeerrApiKey = (keyInput.value || '').trim();
+                    return ApiClient.updatePluginConfiguration(DinkFlixWatchLaterConfig.pluginUniqueId, config);
+                }).then(function (result) {
+                    Dashboard.processPluginConfigurationUpdateResult(result);
+                    setStatus('Settings saved successfully.', 'ok');
+                }).catch(function (error) {
+                    setStatus('Save failed: ' + (error && error.message ? error.message : error), 'err');
+                }).finally(function () {
+                    Dashboard.hideLoadingMsg();
+                });
+
+                return false;
+            });
+
+            testButton.addEventListener('click', function () {
+                var seerrUrl = cleanUrl(urlInput.value);
+                var seerrApiKey = (keyInput.value || '').trim();
+
+                if (!seerrUrl || !seerrApiKey) {
+                    setStatus('Enter both the Seerr URL and API key before testing.', 'err');
+                    return;
+                }
+
+                testButton.disabled = true;
+                Dashboard.showLoadingMsg();
+                setStatus('Testing the values currently entered above...');
+
+                fetch('/DinkFlixWatchLater/test-connection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Emby-Token': ApiClient.accessToken()
+                    },
+                    body: JSON.stringify({ SeerrUrl: seerrUrl, SeerrApiKey: seerrApiKey })
+                }).then(function (response) {
+                    return response.text().then(function (text) {
+                        var data;
+                        try { data = text ? JSON.parse(text) : {}; } catch (_) { data = {}; }
+                        if (!response.ok) {
+                            throw new Error(data.message || data.error || text || ('HTTP ' + response.status));
+                        }
+                        return data;
+                    });
+                }).then(function (result) {
+                    if (result.connected) {
+                        setStatus('Connected to Seerr successfully.', 'ok');
+                    } else {
+                        setStatus('Seerr responded, but the connection test was not successful. ' + (result.message || 'Check the URL and API key.'), 'err');
+                    }
+                }).catch(function (error) {
+                    setStatus('Connection test failed: ' + (error && error.message ? error.message : error), 'err');
+                }).finally(function () {
+                    testButton.disabled = false;
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+        }());
+    </script>
+</div>
+</body>
+</html>
