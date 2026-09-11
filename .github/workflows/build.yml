@@ -22,7 +22,8 @@ jobs:
       # bumps every run so Jellyfin always sees a newer version available
       - name: Determine version
         id: version
-        run: echo "version=1.0.${{ github.run_number }}.0" >> "$GITHUB_OUTPUT"
+        run: VERSION="1.0.${{ github.run_number }}.${{ github.run_attempt }}"
+             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build
         run: dotnet build src/Jellyfin.Plugin.DinkFlixWatchLater/Jellyfin.Plugin.DinkFlixWatchLater.csproj -c Release -o publish
