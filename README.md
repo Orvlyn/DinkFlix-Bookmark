@@ -1,312 +1,131 @@
 # DinkFlix Watch Later
 
-> **A clean Watch Later / wishlist layer for Jellyfin, powered by Seerr.**
+> Save it now. Request it when you are ready.
 
-Save movies and TV shows without requesting them. Come back later to play what is already in your Jellyfin library, or send an unavailable title to Seerr when you are ready.
-
-[![Jellyfin 12](https://img.shields.io/badge/Jellyfin-12.0.0-00ffc6?style=flat-square&labelColor=0b0f15)](https://jellyfin.org/)
-[![Seerr](https://img.shields.io/badge/Seerr-supported-00ffc6?style=flat-square&labelColor=0b0f15)](https://seerr.dev/)
-[![Target](https://img.shields.io/badge/.NET-10-00ffc6?style=flat-square&labelColor=0b0f15)](https://dotnet.microsoft.com/)
-
----
+DinkFlix Watch Later is a lightweight Jellyfin 12 plugin for keeping a personal list of movies and TV shows you want to watch later. It is designed around **Jellyfin Enhanced 12.6.x** and **Seerr**, so it does not duplicate Seerr credentials or build a second request system.
 
 ## What it does
 
-**DinkFlix Watch Later** gives each Jellyfin user a private list of titles they want to come back to.
+- Saves movies and TV shows per Jellyfin user.
+- Stores titles without requesting or downloading them.
+- Uses TMDB IDs so saved titles remain tied to the Seerr/Jellyfin ecosystem.
+- Can save directly from a Seerr URL when browsing Seerr outside Jellyfin.
+- Detects when a saved title is already in the Jellyfin library.
+- Opens available titles directly in Jellyfin.
+- Opens unavailable titles in Seerr so the existing Jellyfin Enhanced request flow remains responsible for permissions, profiles and request handling.
+- Provides a dedicated Watch Later page through Plugin Pages 3.0.0.0 on Jellyfin 12.
+- Uses safe atomic JSON writes for the per-user list.
 
-- 🔖 Save a title without requesting it
-- 🔎 Search Seerr directly from Watch Later
-- 🎬 Separate Movies, TV Shows and Anime views
-- ✨ Generate recommendations from your saved titles
-- ▶️ Detect titles already available in Jellyfin and open them for playback
-- 📥 Request unavailable titles through Seerr when you are ready
-- 👤 Keep lists separate for each Jellyfin user
-- 🔐 Keep the Seerr API key server-side
-- 🖥️ Works as a standalone Jellyfin Web page
-- 🎨 Uses a clean DinkFlix dark interface with `#00ffc6` accents
+## Designed for your stack
 
-The plugin is intentionally a **Watch Later system**, not a second request manager. Seerr remains responsible for requests and media management.
+| Component | Required | Purpose |
+| --- | --- | --- |
+| Jellyfin 12.0.0 | Yes | Server/runtime |
+| Jellyfin Enhanced 12.6.0.0+ | Recommended | Seerr search, discovery and requests |
+| Plugin Pages 3.0.0.0 | Yes for the Watch Later page | Jellyfin 12 user-facing page registration |
+| File Transformation 3.0.0.0 | Keep installed | Required by Plugin Pages/Jellyfin Enhanced in this setup |
+| Seerr | Recommended | Discovery and requesting |
 
----
+Jellyfin Enhanced 12.6.0.0 officially targets stable Jellyfin 12 and recommends using native Jellyfin tabs where available. Its Seerr integration provides search, requests, discovery, recommendations and watchlist syncing.
 
-## Requirements
+Plugin Pages 3.0.0.0 added the Jellyfin 12-compatible `PluginInterface.RegisterPage(JObject)` API specifically for dependent plugins to register pages programmatically.
 
-| Requirement | Version / note |
-|---|---|
-| Jellyfin Server | **12.0.0** |
-| Jellyfin Web | Included with Jellyfin |
-| Seerr | Current supported release |
-| Seerr API key | Required |
-| .NET | 10, for building from source only |
+## How it is intended to work
 
-Seerr exposes API-key authentication through the `X-Api-Key` header. urlSeerr API documentationhttps://docs.seerr.dev/api/seerr-api/
+### 1. Find something
 
----
+Use Seerr directly or use Jellyfin Enhanced's Seerr search/discovery integration inside Jellyfin.
+
+### 2. Save it
+
+Use the DinkFlix **Watch Later** action where the integration is available. Saving an item does **not** request it. If a client does not expose the action yet, paste the Seerr movie/show URL into the Watch Later page. This is a fallback and does not require a second Seerr API key.
+
+### 3. Open Watch Later
+
+The Watch Later page shows your saved titles only. Each title is checked against the Jellyfin library.
+
+### 4. Decide later
+
+- **Available:** Play
+- **Unavailable:** Open in Seerr and use Jellyfin Enhanced's normal Request flow
+- **No longer interested:** Remove
+
+This separation is deliberate. DinkFlix owns the saved list; Jellyfin Enhanced owns Seerr authentication, request permissions and request configuration.
 
 ## Installation
 
-### Option A · Install the release ZIP
+1. Install Jellyfin 12.0.0.
+2. Install File Transformation 3.0.0.0.
+3. Install Plugin Pages 3.0.0.0.
+4. Install Jellyfin Enhanced 12.6.0.0 or newer.
+5. Install DinkFlix Watch Later.
+6. Restart Jellyfin.
+7. Open the Jellyfin user menu and look for **Watch Later**.
 
-1. Open the repository's **Releases** page.
-2. Download the latest `DinkFlixWatchLater_*.zip`.
-3. In Jellyfin, open **Dashboard → Plugins → Repositories** and install the plugin from the release package using your normal Jellyfin plugin installation workflow.
-4. Restart Jellyfin if it asks you to.
-5. Open **Dashboard → Plugins → Installed** and select **DinkFlix Watch Later**.
-
-> The release ZIP contains the compiled plugin DLL at the ZIP root, which is the format produced by the included build workflow.
-
-### Option B · Build it yourself
-
-```bash
-dotnet build src/Jellyfin.Plugin.DinkFlixWatchLater/Jellyfin.Plugin.DinkFlixWatchLater.csproj -c Release -o publish
-```
-
-The compiled DLL will be in `publish/`.
-
----
+If the page does not appear after installation, fully reload the Jellyfin Web client. Plugin Pages 3.0.0.0 specifically changed its Jellyfin 12 injection and routing implementation.
 
 ## Configuration
 
-Open:
+There is intentionally no Seerr URL or Seerr API key field in DinkFlix Watch Later. Your Seerr configuration belongs to Jellyfin Enhanced.
 
-**Jellyfin Dashboard → Plugins → DinkFlix Watch Later**
+This avoids maintaining a second set of credentials and avoids the common situation where a plugin reaches Seerr but receives HTTP 401 because it is not using the same user-aware integration as Jellyfin Enhanced.
 
-Enter:
+## Data storage
 
-### Seerr URL
+Watch Later data is stored per Jellyfin user under the plugin data directory:
 
-Your Seerr base address, for example:
+`plugins/DinkFlixWatchLater/data/<jellyfin-user-id>.json`
 
-```text
-http://192.168.1.10:5055
+Only the server stores the saved list. No Seerr API key is stored by DinkFlix.
+
+## API
+
+Authenticated endpoints:
+
+- `GET /DinkFlixWatchLater/items`
+- `POST /DinkFlixWatchLater/items`
+- `DELETE /DinkFlixWatchLater/items/{tmdbId}?mediaType=movie|tv`
+- `GET /DinkFlixWatchLater/availability/{tmdbId}?mediaType=movie|tv`
+
+The page assets are served from:
+
+- `/DinkFlixWatchLater/web/page`
+- `/DinkFlixWatchLater/web/watchlater.css`
+- `/DinkFlixWatchLater/web/watchlater.js`
+
+The page route is registered through Plugin Pages rather than being exposed as a manually constructed Jellyfin Web route.
+
+## Important limitation
+
+DinkFlix intentionally does not impersonate Jellyfin Enhanced's Seerr request API. The current Jellyfin Enhanced release has its own user-aware Seerr proxy, permissions and request flow. DinkFlix therefore opens Seerr for the final request action instead of attempting to duplicate those internals.
+
+The dedicated Watch Later page and library availability logic work independently of that request hand-off.
+
+## Build
+
+```bash
+dotnet build src/Jellyfin.Plugin.DinkFlixWatchLater/Jellyfin.Plugin.DinkFlixWatchLater.csproj -c Release
 ```
 
-Do not add `/api/v1` to the URL. DinkFlix adds the API path itself.
+The GitHub Actions workflow builds against .NET 10, verifies the resulting assembly and ZIP, publishes a release, and updates the Jellyfin plugin manifest.
 
-### Seerr API key
-
-Find it in:
-
-**Seerr → Settings → General → API Key**
-
-Seerr specifically warns that this key can provide administrator-level access, so treat it like a password and do not publish it. urlSeerr General Settingshttps://docs.seerr.dev/using-seerr/settings/general/
-
-### Test connection
-
-The **Test connection** button tests the URL and API key currently entered in the form. It does **not** depend on the settings having already been saved.
-
-A successful test means DinkFlix can reach Seerr and Seerr accepted the supplied API key.
-
----
-
-## Using Watch Later
-
-Open the Watch Later page from the plugin configuration screen, or add it to Jellyfin's custom menu.
-
-Recommended direct path:
-
-```text
-/DinkFlixWatchLater/web/page
-```
-
-### Search
-
-Search for a movie or TV show. Results are retrieved from Seerr and can be saved directly to Watch Later.
-
-### Save
-
-Saving a title only adds it to your personal DinkFlix list.
-
-**It does not request the title.**
-
-### Play
-
-When a saved title is already in Jellyfin, DinkFlix detects the matching TMDB ID and gives you a **Play** action.
-
-### Request
-
-If the title is not available and Seerr does not report an existing request, DinkFlix provides a **Request** action.
-
-The request is submitted through Seerr's request API.
-
-### Recommendations
-
-The Recommendations tab uses Seerr recommendations for your most recently saved titles, removes titles already in your Watch Later list, and presents the remaining results as additional things to save.
-
----
-
-## Custom Jellyfin menu link
-
-If you want Watch Later permanently available in Jellyfin's main navigation, add a custom menu entry to Jellyfin Web's configuration.
-
-Example:
-
-```json
-{
-  "menuLinks": [
-    {
-      "name": "Watch Later",
-      "icon": "bookmark",
-      "url": "/DinkFlixWatchLater/web/page"
-    }
-  ]
-}
-```
-
-The exact location and configuration format for custom menu links depends on the Jellyfin Web setup you are using.
-
----
-
-## How the plugin works
-
-```text
-                     ┌──────────────────────┐
-                     │   Jellyfin Web       │
-                     │   Watch Later page   │
-                     └──────────┬───────────┘
-                                │
-                                ▼
-                     ┌──────────────────────┐
-                     │ DinkFlix Watch Later │
-                     │      plugin API      │
-                     └───────┬───────┬──────┘
-                             │       │
-                    saved list│       │Seerr API
-                             │       │
-                             ▼       ▼
-                    ┌────────────┐ ┌────────────┐
-                    │  Jellyfin  │ │   Seerr    │
-                    │  library   │ │ discovery  │
-                    │  matching  │ │ & requests │
-                    └────────────┘ └────────────┘
-```
-
-Saved items are stored per Jellyfin user. Seerr is used for metadata, search, recommendations and requests. Jellyfin is used to determine whether a saved title is already available for playback.
-
----
-
-## API endpoints
-
-All endpoints are under:
-
-```text
-/DinkFlixWatchLater
-```
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/items` | Get the current user's saved titles |
-| `POST` | `/items` | Save a title |
-| `DELETE` | `/items/{tmdbId}` | Remove a title |
-| `GET` | `/search?query=` | Search Seerr |
-| `GET` | `/recommendations` | Get recommendations from saved titles |
-| `GET` | `/availability/{tmdbId}` | Check Jellyfin / Seerr availability |
-| `POST` | `/request/{tmdbId}` | Request a title through Seerr |
-| `POST` | `/test-connection` | Test supplied Seerr credentials |
-| `GET` | `/test-connection` | Test saved Seerr configuration |
-| `GET` | `/web/page` | Watch Later UI |
-
----
-
-## Security
-
-- Jellyfin authentication is required for user data and normal plugin API operations.
-- Saved lists are keyed by Jellyfin user ID.
-- The Seerr API key is stored in Jellyfin plugin configuration and is never placed in the Watch Later browser JavaScript.
-- The browser sends its Jellyfin session token to the plugin API for authenticated operations.
-- The standalone Watch Later page does not expose the Seerr API key to the client.
-
-**Do not commit your Seerr API key to this repository.**
-
----
-
-## Project structure
+## Project layout
 
 ```text
 DinkFlix-Bookmark/
-├── .github/
-│   └── workflows/
-│       └── build.yml
+├── .github/workflows/build.yml
 ├── manifest.json
 ├── README.md
-└── src/
-    └── Jellyfin.Plugin.DinkFlixWatchLater/
-        ├── Api/
-        │   ├── Dto/
-        │   └── WatchLaterController.cs
-        ├── Configuration/
-        │   └── configPage.html
-        ├── Services/
-        │   ├── SeerrClient.cs
-        │   └── WatchLaterStore.cs
-        ├── Web/
-        │   ├── watchlater.html
-        │   ├── watchlater.css
-        │   └── watchlater.js
-        ├── Plugin.cs
-        ├── PluginConfiguration.cs
-        ├── PluginServiceRegistrator.cs
-        └── Jellyfin.Plugin.DinkFlixWatchLater.csproj
+└── src/Jellyfin.Plugin.DinkFlixWatchLater/
+    ├── Api/
+    ├── Configuration/
+    ├── Services/
+    ├── Web/
+    ├── Plugin.cs
+    ├── PluginConfiguration.cs
+    └── PluginServiceRegistrator.cs
 ```
-
----
-
-## Build & release workflow
-
-Every push to `main` runs the GitHub Actions workflow.
-
-The workflow:
-
-1. Checks out the complete repository history.
-2. Installs .NET 10.
-3. Builds the plugin in Release mode.
-4. Verifies the compiled DLL exists.
-5. Packages the DLL into a Jellyfin-compatible ZIP.
-6. Verifies the ZIP contents.
-7. Publishes a GitHub release.
-8. Updates the repository manifest with the release URL and checksum.
-9. Rebases and retries the manifest push if another commit reaches `main` during the workflow.
-
-The workflow uses the current `actions/checkout@v5` and `actions/setup-dotnet@v5` actions.
-
----
-
-## Troubleshooting
-
-### Test connection fails
-
-Check all three of these:
-
-1. Jellyfin can reach the Seerr host and port.
-2. The URL points to the Seerr base URL, such as `http://192.168.1.10:5055`.
-3. The API key is the current key shown in **Seerr → Settings → General**.
-
-Seerr's own troubleshooting documentation recommends checking network/DNS connectivity when the server cannot reach external services. urlSeerr troubleshootinghttps://docs.seerr.dev/troubleshooting/
-
-### Search works but requests fail
-
-Seerr must have working Radarr/Sonarr configuration and at least one default server configured for requests. urlSeerr service configurationhttps://docs.seerr.dev/using-seerr/settings/services/
-
-### A title says it is unavailable even though Jellyfin has it
-
-DinkFlix matches saved movies and TV shows using the Jellyfin TMDB provider ID. Make sure the Jellyfin item has TMDB metadata assigned.
-
-### Watch Later page is blank
-
-Open the page while signed into Jellyfin Web and make sure the browser has an active Jellyfin session. The page uses that session to authenticate its API requests.
-
----
-
-## Development notes
-
-The plugin targets Jellyfin **12.0.0** and .NET **10**.
-
-The Jellyfin plugin template demonstrates the standard configuration-page save flow using `ApiClient.getPluginConfiguration`, `ApiClient.updatePluginConfiguration`, and `Dashboard.processPluginConfigurationUpdateResult`. DinkFlix follows that pattern for configuration persistence. urlJellyfin plugin template configuration pagehttps://raw.githubusercontent.com/jellyfin/jellyfin-plugin-template/master/Jellyfin.Plugin.Template/Configuration/configPage.html
-
-Seerr's current API documentation defines the search endpoint as `GET /search`, the status endpoint as `GET /status`, and API-key authentication through `X-Api-Key`. citeturn3search0turn7view0turn0search0
-
----
 
 ## License
 
-This project is provided as-is for personal Jellyfin / DinkFlix use.
+This project is distributed under the license used by the repository.
