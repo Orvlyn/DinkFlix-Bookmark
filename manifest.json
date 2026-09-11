@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.2.35.1",
+        "changelog": "DinkFlix Watch Later 1.2 redesign",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/Orvlyn/DinkFlix-Bookmark/releases/download/1.2.35.1/DinkFlixWatchLater_1.2.35.1.zip",
+        "checksum": "8a93f15827597dc5e7f6a8619b789969",
+        "timestamp": "2026-09-11T03:44:24Z"
+      },
+      {
         "version": "1.2.34.1",
         "changelog": "DinkFlix Watch Later 1.2 redesign",
         "targetAbi": "12.0.0.0",
