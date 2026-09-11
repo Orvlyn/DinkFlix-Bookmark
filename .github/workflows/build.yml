@@ -1,192 +1,76 @@
 name: Build and Publish Plugin
-
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
-
-# Prevent multiple builds from updating manifest.json at the same time.
-# A queued build will wait for the previous one to finish.
+  workflow_dispatch:
 concurrency:
   group: dinkflix-watchlater-build
   cancel-in-progress: false
-
-# Needed so the workflow can create a release and commit the updated manifest.json.
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-
-      # Generate a unique Jellyfin-compatible version.
-      #
-      # github.run_number increases for each workflow run.
-      # github.run_attempt increases when the same workflow run is re-run.
-      #
-      # Example:
-      #   First run:  1.0.18.1
-      #   Re-run:     1.0.18.2
-      #   Next run:   1.0.19.1
       - name: Determine version
         id: version
         shell: bash
         run: |
           set -euo pipefail
-
-          VERSION="1.0.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-
-          if [[ -z "$VERSION" ]]; then
-            echo "Failed to generate plugin version."
-            exit 1
-          fi
-
-          echo "Building DinkFlix Watch Later version: $VERSION"
+          VERSION="1.1.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Build
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          dotnet build \
-            src/Jellyfin.Plugin.DinkFlixWatchLater/Jellyfin.Plugin.DinkFlixWatchLater.csproj \
-            -c Release \
-            -o publish
-
-      # Jellyfin expects the plugin DLL at the root of the ZIP.
+        run: dotnet build src/Jellyfin.Plugin.DinkFlixWatchLater/Jellyfin.Plugin.DinkFlixWatchLater.csproj -c Release -o publish
       - name: Package
         shell: bash
         run: |
           set -euo pipefail
-
           VERSION="${{ steps.version.outputs.version }}"
           ZIP_NAME="DinkFlixWatchLater_${VERSION}.zip"
-
+          test -f publish/Jellyfin.Plugin.DinkFlixWatchLater.dll
           mkdir -p package
-
-          cp \
-            publish/Jellyfin.Plugin.DinkFlixWatchLater.dll \
-            package/
-
-          cd package
-          zip -r "../${ZIP_NAME}" .
-
-          cd ..
-
-          echo "Created ${ZIP_NAME}"
-          ls -lh "${ZIP_NAME}"
-
+          cp publish/Jellyfin.Plugin.DinkFlixWatchLater.dll package/
+          (cd package && zip -r "../${ZIP_NAME}" .)
+          echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+        id: package
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-
           VERSION="${{ steps.version.outputs.version }}"
-          ZIP_NAME="DinkFlixWatchLater_${VERSION}.zip"
-
-          echo "Creating GitHub release ${VERSION}"
-
-          # Make absolutely sure we never call gh with an empty tag.
-          if [[ -z "$VERSION" ]]; then
-            echo "ERROR: VERSION is empty."
-            exit 1
-          fi
-
-          if [[ ! -f "$ZIP_NAME" ]]; then
-            echo "ERROR: Release ZIP does not exist: $ZIP_NAME"
-            exit 1
-          fi
-
-          gh release create "$VERSION" \
-            "$ZIP_NAME" \
-            --title "$VERSION" \
-            --notes "Automated build from commit ${{ github.sha }}" \
-            --latest
-
-      - name: Update manifest and push
+          ZIP_NAME="${{ steps.package.outputs.zip }}"
+          test -n "$VERSION"
+          test -f "$ZIP_NAME"
+          gh release create "$VERSION" "$ZIP_NAME" --title "$VERSION" --notes "DinkFlix Watch Later automated build from ${{ github.sha }}" --latest
+      - name: Update manifest
         shell: bash
         run: |
           set -euo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
           VERSION="${{ steps.version.outputs.version }}"
-          ZIP_NAME="DinkFlixWatchLater_${VERSION}.zip"
-
+          ZIP_NAME="${{ steps.package.outputs.zip }}"
           CHECKSUM=$(md5sum "$ZIP_NAME" | cut -d ' ' -f1)
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${ZIP_NAME}"
-
-          echo "Version:   $VERSION"
-          echo "ZIP:       $ZIP_NAME"
-          echo "Checksum:  $CHECKSUM"
-          echo "Source URL: $SOURCE_URL"
-
-          # Retry the manifest update if another workflow changes main
-          # between fetching and pushing.
-          for attempt in 1 2 3 4 5; do
-            echo ""
-            echo "Manifest update attempt $attempt/5"
-
-            git fetch origin main
-            git reset --hard origin/main
-
-            jq \
-              --arg version "$VERSION" \
-              --arg changelog "Automated build" \
-              --arg targetAbi "12.0.0.0" \
-              --arg sourceUrl "$SOURCE_URL" \
-              --arg checksum "$CHECKSUM" \
-              --arg timestamp "$TIMESTAMP" \
-              '
-                (.[0].versions) |= (
-                  [
-                    {
-                      version: $version,
-                      changelog: $changelog,
-                      targetAbi: $targetAbi,
-                      sourceUrl: $sourceUrl,
-                      checksum: $checksum,
-                      timestamp: $timestamp
-                    }
-                  ] + .
-                )
-              ' \
-              manifest.json > manifest.tmp.json
-
-            mv manifest.tmp.json manifest.json
-
-            git add manifest.json
-
-            if git diff --cached --quiet; then
-              echo "Manifest already contains this version."
-              exit 0
-            fi
-
-            git commit \
-              -m "Update plugin manifest for ${VERSION} [skip ci]"
-
-            if git push origin HEAD:main; then
-              echo "Manifest push succeeded."
-              exit 0
-            fi
-
-            echo "Push rejected on attempt $attempt. Retrying..."
-            sleep 3
-          done
-
-          echo "ERROR: Failed to push manifest after 5 attempts."
-          exit 1
+          jq --arg version "$VERSION" --arg sourceUrl "$SOURCE_URL" --arg checksum "$CHECKSUM" --arg timestamp "$TIMESTAMP" '
+            (.[0].versions) |= ([{version:$version,changelog:"DinkFlix Watch Later update",targetAbi:"12.0.0.0",sourceUrl:$sourceUrl,checksum:$checksum,timestamp:$timestamp}] + .)
+          ' manifest.json > manifest.tmp.json
+          mv manifest.tmp.json manifest.json
+      - name: Commit manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Update plugin manifest for ${{ steps.version.outputs.version }} [skip ci]"
+          git push origin HEAD:main
